@@ -1,0 +1,65 @@
+{
+    "contractName": "Insur",
+    "abi": [],
+    "metadata": "{\"compiler\":{\"version\":\"0.8.11+commit.d7f03943\"},\"language\":\"Solidity\",\"output\":{\"abi\":[],\"devdoc\":{\"kind\":\"dev\",\"methods\":{},\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{},\"version\":1}},\"settings\":{\"compilationTarget\":{\"c:/Users/groma/Documents/blockchain/Insurance.sol\":\"Insur\"},\"evmVersion\":\"london\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\"},\"optimizer\":{\"enabled\":true,\"runs\":200},\"remappings\":[]},\"sources\":{\"c:/Users/groma/Documents/blockchain/Insurance.sol\":{\"keccak256\":\"0x137bbf5fa7759112643c85c5eacd6cf4a694fb26a0d69b226297dcd61b837e9e\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://1531c248f65b7a687fdf32020fa27f74ba3078cfca7e5508719c3d772cda559f\",\"dweb:/ipfs/Qma4p7vzu14FCnFSE4CdATXcKSfuM7PBsoCF71H2mVT9qP\"]}},\"version\":1}",
+    "bytecode": "6080604052348015600f57600080fd5b50603f80601d6000396000f3fe6080604052600080fdfea264697066735822122073366f661fb01e44cd01d7a1f8a84ac937e16141e72ba6fd1d9c4c8daf049f8364736f6c634300080b0033",
+    "deployedBytecode": "6080604052600080fdfea264697066735822122073366f661fb01e44cd01d7a1f8a84ac937e16141e72ba6fd1d9c4c8daf049f8364736f6c634300080b0033",
+    "sourceMap": "60:17:0:-:0;;;;;;;;;;;;;;;;;;;",
+    "deployedSourceMap": "60:17:0:-:0;;;;;",
+    "sourcePath": "c:/Users/groma/Documents/blockchain/Insurance.sol",
+    "compiler": {
+        "name": "solc",
+        "version": "0.8.11+commit.d7f03943"
+    },
+    "ast": {
+        "absolutePath": "c:/Users/groma/Documents/blockchain/Insurance.sol",
+        "exportedSymbols": {
+            "Insur": [
+                2
+            ]
+        },
+        "id": 3,
+        "license": "MIT",
+        "nodeType": "SourceUnit",
+        "nodes": [
+            {
+                "id": 1,
+                "literals": [
+                    "solidity",
+                    "0.8",
+                    ".11"
+                ],
+                "nodeType": "PragmaDirective",
+                "src": "33:23:0"
+            },
+            {
+                "abstract": false,
+                "baseContracts": [],
+                "canonicalName": "Insur",
+                "contractDependencies": [],
+                "contractKind": "contract",
+                "fullyImplemented": true,
+                "id": 2,
+                "linearizedBaseContracts": [
+                    2
+                ],
+                "name": "Insur",
+                "nameLocation": "69:5:0",
+                "nodeType": "ContractDefinition",
+                "nodes": [],
+                "scope": 3,
+                "src": "60:17:0",
+                "usedErrors": []
+            }
+        ],
+        "src": "33:46:0"
+    },
+    "functionHashes": {},
+    "gasEstimates": {
+        "creation": {
+            "codeDepositCost": "12600",
+            "executionCost": "66",
+            "totalCost": "12666"
+        }
+    }
+}
