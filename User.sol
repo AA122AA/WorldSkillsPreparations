@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0
+// SPDX-License-Identifier: MIT
 pragma solidity 0.8.11;
 
 contract User {
@@ -14,7 +14,7 @@ contract User {
         DrivingLicence dl;
         uint256 startDrive;
         uint256 accidentAmount;
-        uint256 notPayedFinesAmount;
+        uint256[] notPayedFines; //Хранит timestamp когда появился штраф
         uint256 insuranceFee;
         uint256 balance;
         bool isDPS;
@@ -34,8 +34,12 @@ contract User {
 
     uint256 usersCount = 0;
     uint256 date;
+    address payable constant bank =
+        payable(0xD9eaa853bBCCcf5CB0A49241A7F69d743f3cf049);
+    address payable constant insurance =
+        payable(0x5B38Da6a701c568545dCfcB03FcB875f56beddC4);
 
-    // ["000",2,"C"],["111",5,"B"],["222",8,"D"],["333",9,"C"],["444",3,"B"],["555",7,"E"],["666",2,"B"] - так передаются таплы
+    // ["000",1649538000,"C"],["111",1655586000,"B"],["222",1661979600,"D"],["333",1663794000,"C"],["444",1653166800,"B"],["555",1779397200,"E"],["666",1646859600,"B"] - так передаются таплы
     constructor(
         DrivingLicence memory _dl0,
         DrivingLicence memory _dl1,
@@ -76,7 +80,7 @@ contract User {
         string memory _FIO,
         uint256 _startDrive,
         uint256 _accidentAmount,
-        uint256 _notPayedFinesAmount,
+        uint256[] memory _notPayedFines,
         uint256 _insuranceFee,
         uint256 _balance,
         bool _isDPS
@@ -87,7 +91,7 @@ contract User {
             DrivingLicence("0", 0, "0"),
             _startDrive,
             _accidentAmount,
-            _notPayedFinesAmount,
+            _notPayedFines,
             _insuranceFee,
             _balance,
             _isDPS
@@ -98,7 +102,7 @@ contract User {
     }
 
     function createUser(
-        User_str memory _user // ["0x5B38Da6a701c568545dCfcB03FcB875f56beddC4", "00", ["000", 2, "C"], 5, 0, 0, 6, 4, true] - такое надо передавать чтоб создавать юзера. 
+        User_str memory _user // ["0x5B38Da6a701c568545dCfcB03FcB875f56beddC4", "00", ["000", 2, "C"], 5, 0, 0, 6, 4, true] - такое надо передавать чтоб создавать юзера.
     ) public dlCheck(_user.dl.number, _user.dl.validity, _user.dl.category) {
         usersArr.push(_user);
         userIndexMap[msg.sender] = usersCount;
@@ -132,7 +136,44 @@ contract User {
         usersCars[msg.sender].push(Car_str(_carCategory, _price, _age));
     }
 
-    function dlProlongation(type name) {
-        require(date >= start + daysAfter * 1 days) // Надо номрльные даты для прав придумать + понять на сколько проделваются права + проверять по условию ТЗ
+    function dlProlongation() public {
+        User_str memory _user = usersArr[userIndexMap[msg.sender]];
+        uint256 _now = block.timestamp;
+        require(
+            _user.dl.validity >= _now + 30 * 1 days,
+            "Your driving licence are expiring in less then month. You can not prolongate them through this portal. Please visit police station"
+        );
+        require(_user.notPayedFines.length == 0, "Pay your fines dude");
+        usersArr[userIndexMap[msg.sender]].dl.validity += 365 * 1 days;
+    }
+
+    function checkFinesAmount() public view returns (uint256) {
+        return usersArr[userIndexMap[msg.sender]].notPayedFines.length;
+    }
+
+    function finePayment(uint256 _finesToPay) public {
+        uint256[] memory _arr = usersArr[userIndexMap[msg.sender]]
+            .notPayedFines;
+        uint256 _len = _arr.length;
+        require(_len != 0, "All fines are payed");
+        require(
+            _len >= _finesToPay,
+            "You got less fines, use checkFinesAmount to know exact number"
+        );
+        for (uint256 index = 0; index < _finesToPay; index++) {
+            if (_arr[_len - 1 - index] + 25 seconds > block.timestamp) {
+                bank.transfer(5 ether);
+                usersArr[userIndexMap[msg.sender]].balance -= 5;
+            } else {
+                bank.transfer(10 ether);
+                usersArr[userIndexMap[msg.sender]].balance -= 10;
+            }
+            usersArr[userIndexMap[msg.sender]].notPayedFines.pop();
+        }
+    }
+
+    function insurancePay(uint256 _price) public {
+        insurance.transfer(_price);
+        usersArr[userIndexMap[msg.sender]].balance -= _price;
     }
 }
