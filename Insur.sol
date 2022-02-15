@@ -8,5 +8,8 @@ contract Insur {
         uint256 _notPayedFinesAmount,
         uint256 _accidentAmount,
         uint256 _experience
-    ) external returns (uint256) {}
+    ) external returns (uint256) {
+        uint256 _price = 5; //Тут математика, пока нет времени ее делать
+        return _price;
+    }
 }

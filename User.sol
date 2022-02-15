@@ -1,6 +1,72 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.11;
 
+// import "./Insur.sol" as Insur;
+contract Bank {
+    address insurAddr;
+    event sendMoney(address sender, uint256 amount);
+    event receiveMoney(address sender, uint256 amount);
+
+    function giveMoneyInsur(uint256 _value) external {
+        payable(insurAddr).transfer(_value);
+        emit sendMoney(insurAddr, _value);
+    }
+
+    function bb() external payable {
+        emit receiveMoney(msg.sender, msg.value);
+    }
+
+    function getBalance() external view returns (uint256) {
+        return address(this).balance;
+    }
+}
+
+contract Insur {
+    uint256 balance = 0;
+    uint256 debt = 0;
+    Bank b;
+    address payable constant bank =
+        payable(0xD9eaa853bBCCcf5CB0A49241A7F69d743f3cf049);
+
+    function getPrice(
+        uint256 _carPrice,
+        uint256 _catAge,
+        uint256 _notPayedFinesAmount,
+        uint256 _accidentAmount,
+        uint256 _experience
+    ) external pure returns (uint256) {
+        uint256 _price = 5; //Тут математика, пока нет времени ее делать
+        return _price;
+    }
+
+    function takeMoney(address _userAddr, uint256 _price) external {
+        payable(_userAddr).transfer(_price);
+        if (debt != 0) {
+            if (debt > _price) {
+                debt -= _price;
+                bank.transfer(_price);
+            } else if (debt < _price) {
+                balance += _price - debt;
+                bank.transfer(debt);
+                debt = 0;
+            } else {
+                debt = 0;
+            }
+        }
+        balance += _price;
+    }
+
+    function giveMoney(address _toPay, uint256 _amount) external {
+        if (_amount * 10 > balance) {
+            b.giveMoneyInsur(_amount - balance);
+            debt += _amount - balance;
+            balance = 0;
+        }
+        payable(_toPay).transfer(_amount * 10);
+        balance -= _amount;
+    }
+}
+
 contract User {
     struct DrivingLicence {
         string number;
@@ -29,9 +95,10 @@ contract User {
     User_str[] usersArr;
 
     mapping(address => uint256) userIndexMap;
-    mapping(address => Car_str[]) usersCars;
+    mapping(address => Car_str) usersCar;
     mapping(string => DrivingLicence) drivingLicencePool;
 
+    Insur ins;
     uint256 usersCount = 0;
     uint256 date;
     address payable constant bank =
@@ -73,6 +140,11 @@ contract User {
                 keccak256(bytes(_category)),
             "wrong category"
         );
+        _;
+    }
+    modifier isDPS() {
+        User_str memory _DPS = usersArr[userIndexMap[msg.sender]];
+        require(_DPS.isDPS == true, "You are not DPS");
         _;
     }
 
@@ -133,7 +205,7 @@ contract User {
                 keccak256(bytes(_carCategory)),
             "wrong category"
         );
-        usersCars[msg.sender].push(Car_str(_carCategory, _price, _age));
+        usersCar[msg.sender] = Car_str(_carCategory, _price, _age);
     }
 
     function dlProlongation() public {
@@ -172,8 +244,39 @@ contract User {
         }
     }
 
-    function insurancePay(uint256 _price) public {
-        insurance.transfer(_price);
+    function getInsPrice() public view returns (uint256) {
+        User_str memory _user = usersArr[userIndexMap[msg.sender]];
+        Car_str memory _usersCar = usersCar[msg.sender];
+        uint256 _exp = (block.timestamp - _user.startDrive) / (365 * 1 days);
+        uint256 _price = ins.getPrice(
+            _usersCar.price,
+            _usersCar.age,
+            _user.notPayedFines.length,
+            _user.accidentAmount,
+            _exp
+        );
+        return _price;
+    }
+
+    function payForIns() public {
+        uint256 _price = getInsPrice();
+        ins.takeMoney(msg.sender, _price);
         usersArr[userIndexMap[msg.sender]].balance -= _price;
+    }
+
+    function createFine(address _toBeFined) public isDPS {
+        // Сказано, что штраф выписывается по номеру ВУ, что для меня достаточно странно. Пока оставлю так. Но возомжно будет нобходимо менять структуры.
+        usersArr[userIndexMap[_toBeFined]].notPayedFines.push(block.timestamp);
+    }
+
+    function createAccident(address _toPay) public isDPS {
+        require(
+            usersArr[userIndexMap[_toPay]].insuranceFee != 0,
+            "You did not pay for incurance"
+        );
+        ins.giveMoney(_toPay, usersArr[userIndexMap[_toPay]].insuranceFee);
+        usersArr[userIndexMap[_toPay]].balance +=
+            usersArr[userIndexMap[_toPay]].insuranceFee *
+            10;
     }
 }
