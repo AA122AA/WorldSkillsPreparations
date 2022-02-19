@@ -3,20 +3,27 @@ pragma solidity 0.8.11;
 
 // import "./Insur.sol" as Insur;
 contract Bank {
-    address insurAddr;
     event sendMoney(address sender, uint256 amount);
     event receiveMoney(address sender, uint256 amount);
     event Received(address, uint256);
+    address insurContrAddr;
+    Addresses addr;
+
+    constructor(address _addrContr) {
+        addr = Addresses(_addrContr);
+        addr.setAddr(address(this), "bank");
+    }
 
     receive() external payable {
         emit Received(msg.sender, msg.value);
     }
 
     function giveMoneyInsur(uint256 _value) external {
-        require(insurAddr == msg.sender, "You have no permision");
+        insurContrAddr = addr.getInsur();
+        require(insurContrAddr == msg.sender, "You have no permision");
         require(address(this).balance >= _value, "no money in bank");
-        payable(insurAddr).transfer(_value);
-        emit sendMoney(insurAddr, _value);
+        payable(insurContrAddr).transfer(_value);
+        emit sendMoney(insurContrAddr, _value);
     }
 
     function getBalance() external view returns (uint256) {
@@ -26,11 +33,17 @@ contract Bank {
 
 contract Insur {
     uint256 debt = 0;
-    Bank b;
-    address payable constant bankAddr =
-        payable(0xD9eaa853bBCCcf5CB0A49241A7F69d743f3cf049);
+    Addresses addr;
+    Bank bankContract;
 
-    address userAddr = payable(0xD9eaa853bBCCcf5CB0A49241A7F69d743f3cf049);
+    constructor(address _addrContr) {
+        addr = Addresses(_addrContr);
+        addr.setAddr(address(this), "insur");
+    }
+
+    address payable bankContractAddr;
+
+    address userContractAddr;
 
     event Received(address, uint256);
 
@@ -49,25 +62,30 @@ contract Insur {
         return _price;
     }
 
-    function takeMoney(uint256 _price) external {
+    function takeMoney(uint256 _price) external payable {
+        userContractAddr = addr.getUser();
+        require(msg.sender == userContractAddr);
         // Может вызываться только с контракта User
         if (debt != 0) {
             if (debt > _price) {
                 debt -= _price;
-                bankAddr.transfer(msg.value);
+                bankContractAddr.transfer(msg.value);
             } else if (debt <= msg.value) {
-                bankAddr.transfer(debt);
+                bankContractAddr.transfer(debt);
                 debt = 0;
             }
         }
     }
 
     function giveMoney(uint256 _amount) external {
-        require(msg.sender == userAddr);
+        userContractAddr = addr.getUser();
+        bankContractAddr = payable(addr.getBank());
+        bankContract = Bank(bankContractAddr);
+        require(msg.sender == userContractAddr);
         uint256 _a = _amount * 10;
         uint256 _debt = _a - address(this).balance;
         if (_a > address(this).balance) {
-            b.giveMoneyInsur(_debt);
+            bankContract.giveMoneyInsur(_debt);
             debt += _debt;
         }
         payable(msg.sender).transfer(_a);
@@ -99,21 +117,21 @@ contract User {
         uint256 age;
     }
 
-    User_str[] usersArr;
+    address[] usersAddrArr;
 
-    mapping(address => uint256) userIndexMap;
+    mapping(address => User_str) usersMap;
     mapping(address => Car_str) usersCar;
     mapping(string => DrivingLicence) drivingLicencePool;
 
     Insur ins;
     uint256 usersCount = 0;
     uint256 date;
-    address payable constant bank =
-        payable(0xD9eaa853bBCCcf5CB0A49241A7F69d743f3cf049);
-    address payable constant insurance =
-        payable(0x5B38Da6a701c568545dCfcB03FcB875f56beddC4);
+    address admin;
+    address payable bankContrAddr;
+    address payable insurContrAddr;
+    Addresses addr;
 
-    // ["000",1649538000,"C"],["111",1655586000,"B"],["222",1661979600,"D"],["333",1663794000,"C"],["444",1653166800,"B"],["555",1779397200,"E"],["666",1646859600,"B"] - так передаются таплы
+    // ["000",1649538000,"C"],["111",1655586000,"B"],["222",1661979600,"D"],["333",1663794000,"C"],["444",1653166800,"B"],["555",1779397200,"E"],["666",1646859600,"B"], "0x5B38Da6a701c568545dCfcB03FcB875f56beddC4", "0xd8b934580fcE35a11B58C6D73aDeE468a2833fa8" - так передаются таплы
     constructor(
         DrivingLicence memory _dl0,
         DrivingLicence memory _dl1,
@@ -122,10 +140,11 @@ contract User {
         DrivingLicence memory _dl4,
         DrivingLicence memory _dl5,
         DrivingLicence memory _dl6,
-        // деплоим все 3 контракта, затем получем их адреса и создаем еще один контракт, котоырй хранит их адреса
-        address ins,
-        address bank
-    ) {
+        address _admin,
+        address _addrContr
+    )
+    // деплоим все 3 контракта, затем получем их адреса и создаем еще один контракт, котоырй хранит их адреса
+    {
         drivingLicencePool[_dl0.number] = _dl0;
         drivingLicencePool[_dl1.number] = _dl1;
         drivingLicencePool[_dl2.number] = _dl2;
@@ -134,6 +153,9 @@ contract User {
         drivingLicencePool[_dl5.number] = _dl5;
         drivingLicencePool[_dl6.number] = _dl6;
         date = block.timestamp;
+        admin = _admin;
+        addr = Addresses(_addrContr);
+        addr.setAddr(address(this), "user");
     }
 
     modifier dlCheck(
@@ -152,8 +174,8 @@ contract User {
         );
         _;
     }
-    modifier isDPS() {
-        User_str memory _DPS = usersArr[userIndexMap[msg.sender]];
+    modifier isDPS(address _address) {
+        User_str memory _DPS = usersMap[_address];
         require(_DPS.isDPS == true, "You are not DPS");
         _;
     }
@@ -171,22 +193,20 @@ contract User {
             0,
             false
         );
-        usersArr.push(_user); //выпилить массив пользователей. Сделать mapping(address => User_str). Возможно сделать массив с адресами
-        userIndexMap[msg.sender] = usersCount;
-        usersCount += 1;
+        usersAddrArr.push(_user.userAddr);
+        usersMap[_user.userAddr] = _user;
     }
 
     function popolnitbalans() external payable {
-        // попоняем баланс пользователя msg.sender и msg.value usermap[msg.sender].balance +=msg.value
+        usersMap[msg.sender].balance += msg.value;
     }
 
     function createUser(
         User_str memory _user // ["0x5B38Da6a701c568545dCfcB03FcB875f56beddC4", "00", ["000", 2, "C"], 5, 0, 0, 6, 4, true] - такое надо передавать чтоб создавать юзера.
     ) public dlCheck(_user.dl.number, _user.dl.validity, _user.dl.category) {
-        // разрешить использовать эту функцию только адимину.
-        usersArr.push(_user);
-        userIndexMap[msg.sender] = usersCount;
-        usersCount += 1;
+        require(msg.sender == admin);
+        usersAddrArr.push(_user.userAddr);
+        usersMap[_user.userAddr] = _user;
     }
 
     function setDrivingLicence(
@@ -199,8 +219,7 @@ contract User {
             _validity,
             _category
         );
-        uint256 index = userIndexMap[msg.sender];
-        usersArr[index].dl = _dl;
+        usersMap[msg.sender].dl = _dl;
     }
 
     function registerCar(
@@ -209,7 +228,7 @@ contract User {
         uint256 _age
     ) public {
         require(
-            keccak256(bytes(usersArr[userIndexMap[msg.sender]].dl.category)) ==
+            keccak256(bytes(usersMap[msg.sender].dl.category)) ==
                 keccak256(bytes(_carCategory)),
             "wrong category"
         );
@@ -217,22 +236,21 @@ contract User {
     }
 
     function dlProlongation() public {
-        User_str memory _user = usersArr[userIndexMap[msg.sender]];
+        User_str memory _user = usersMap[msg.sender];
         require(
             _user.dl.validity >= block.timestamp + 30 * 1 days,
             "Your driving licence are expiring in less then month. You can not prolongate them through this portal. Please visit police station"
         );
         require(_user.notPayedFines.length == 0, "Pay your fines dude");
-        usersArr[userIndexMap[msg.sender]].dl.validity += 365 * 1 days;
+        usersMap[msg.sender].dl.validity += 365 * 1 days;
     }
 
     function checkFinesAmount() public view returns (uint256) {
-        return usersArr[userIndexMap[msg.sender]].notPayedFines.length;
+        return usersMap[msg.sender].notPayedFines.length;
     }
 
     function finePayment(uint256 _finesToPay) public payable {
-        uint256[] memory _arr = usersArr[userIndexMap[msg.sender]]
-            .notPayedFines;
+        uint256[] memory _arr = usersMap[msg.sender].notPayedFines;
         uint256 _len = _arr.length;
         require(_len != 0, "All fines are payed");
         require(
@@ -241,19 +259,21 @@ contract User {
         );
         for (uint256 index = 0; index < _finesToPay; index++) {
             if (_arr[_len - 1 - index] + 25 seconds > block.timestamp) {
-                bank.transfer(5 ether);
-                usersArr[userIndexMap[msg.sender]].balance -= 5 ether;
+                bankContrAddr.transfer(5 ether);
+                usersMap[msg.sender].balance -= 5 ether;
             } else {
-                bank.transfer(10 ether);
-                usersArr[userIndexMap[msg.sender]].balance -= 10 ether;
+                bankContrAddr.transfer(10 ether);
+                usersMap[msg.sender].balance -= 10 ether;
             }
-            usersArr[userIndexMap[msg.sender]].notPayedFines.pop();
+            usersMap[msg.sender].notPayedFines.pop();
         }
     }
 
-    function formInsPrice() public view returns (uint256) {
-        // проверку на то, что у пользователя есть машины
-        User_str memory _user = usersArr[userIndexMap[msg.sender]];
+    function formInsPrice() public returns (uint256) {
+        insurContrAddr = payable(addr.getInsur());
+        ins = Insur(insurContrAddr);
+        require(usersCar[msg.sender].price != 0);
+        User_str memory _user = usersMap[msg.sender];
         Car_str memory _usersCar = usersCar[msg.sender];
         uint256 _exp = (block.timestamp - _user.startDrive) / (365 * 1 days);
         uint256 _price = ins.getPrice(
@@ -263,32 +283,34 @@ contract User {
             _user.accidentAmount,
             _exp
         );
-        //добавить стоимость в пользователя
+        usersMap[msg.sender].insuranceFee = _price;
         return _price;
     }
 
     function payForIns() public {
-        uint256 _price = getInsPrice();
-        require(usersmap[msg.sender].balance >= _price);
+        uint256 _price = formInsPrice();
+        insurContrAddr = payable(addr.getInsur());
+        ins = Insur(insurContrAddr);
+        require(usersMap[msg.sender].balance >= _price);
         payable(ins).transfer(_price); // переделать на call https://docs.soliditylang.org/en/latest/contracts.html?highlight=call#fallback-function
         ins.takeMoney(_price);
-        usersArr[userIndexMap[msg.sender]].balance -= _price;
+        usersMap[msg.sender].balance -= _price;
     }
 
-    function createFine(address _toBeFined) public isDPS {
+    function createFine(address _toBeFined) public isDPS(msg.sender) {
         // Сказано, что штраф выписывается по номеру ВУ, что для меня достаточно странно. Пока оставлю так. Но возомжно будет нобходимо менять структуры.
-        usersArr[userIndexMap[_toBeFined]].notPayedFines.push(block.timestamp);
+        usersMap[_toBeFined].notPayedFines.push(block.timestamp);
     }
 
-    function createAccident(address _toPay) public isDPS {
+    function createAccident(address _toPay) public isDPS(msg.sender) {
+        insurContrAddr = payable(addr.getInsur());
+        ins = Insur(insurContrAddr);
         require(
-            usersArr[userIndexMap[_toPay]].insuranceFee != 0,
+            usersMap[_toPay].insuranceFee != 0,
             "You did not pay for incurance"
         );
-        ins.giveMoney(usersArr[userIndexMap[_toPay]].insuranceFee);
-        usersArr[userIndexMap[_toPay]].balance +=
-            usersArr[userIndexMap[_toPay]].insuranceFee *
-            10;
+        ins.giveMoney(usersMap[_toPay].insuranceFee);
+        usersMap[_toPay].balance += usersMap[_toPay].insuranceFee * 10;
     }
 
     function moneyBack(uint256 _amount) external {
@@ -296,7 +318,43 @@ contract User {
             _amount <= msg.sender.balance,
             "not enough money on your balanace"
         );
-        msg.sender.transfer(_amount);
-        usermap[msg.sender].balance -= _amount;
+        payable(msg.sender).transfer(_amount);
+        usersMap[msg.sender].balance -= _amount;
+    }
+}
+
+contract Addresses {
+    event wrongCall(address sender, string _name);
+
+    address bankContractAddr;
+    address insurContractAddr;
+    address userContractAddr;
+
+    function setAddr(address _address, string memory _contrName) external {
+        if (keccak256(bytes(_contrName)) == keccak256(bytes("bank"))) {
+            bankContractAddr = _address;
+        } else if (keccak256(bytes(_contrName)) == keccak256(bytes("user"))) {
+            userContractAddr = _address;
+        } else if (keccak256(bytes(_contrName)) == keccak256(bytes("insur"))) {
+            insurContractAddr = _address;
+        } else {
+            emit wrongCall(_address, _contrName);
+        }
+    }
+
+    function getBank() external view returns (address) {
+        return bankContractAddr;
+    }
+
+    function getInsur() external view returns (address) {
+        return insurContractAddr;
+    }
+
+    function getUser() external view returns (address) {
+        return userContractAddr;
+    }
+
+    function getAddr() public view returns (address) {
+        return address(this);
     }
 }
