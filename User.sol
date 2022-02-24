@@ -71,8 +71,8 @@ contract Insur {
         if (debt != 0) {
             if (debt > _price) {
                 debt -= _price;
-                bankContractAddr.transfer(msg.value);
-            } else if (debt <= msg.value) {
+                bankContractAddr.transfer(_price);
+            } else if (debt <= _price) {
                 bankContractAddr.transfer(debt);
                 debt = 0;
             }
