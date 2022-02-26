@@ -1,0 +1,5 @@
+geth --identity "MainMiner" --networkid 102 --datadir "~/MainMiner" --nodiscover --mine --rpc --rpcport "8042" --port "30303" --allow-insecure-unlock --pasword ~/MainMiner/password.sec --ipc
+path "~/MainMiner/geth.ipc"
+
+Если не отправляется транзакция:
+web3.personal.unlockAccount(eth.Accouts[0], null, 60) 
