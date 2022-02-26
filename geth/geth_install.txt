@@ -1,5 +1,22 @@
 geth --identity "MainMiner" --networkid 102 --datadir "~/MainMiner" --nodiscover --mine --rpc --rpcport "8042" --port "30303" --allow-insecure-unlock --pasword ~/MainMiner/password.sec --ipc
 path "~/MainMiner/geth.ipc"
 
+Порядок действий на windows:
+1. geth account new -  создаем акк, и его указываем в genesis блоке
+2. geth --datadir ./.ethereum_private --keystore c:\users\groma\appdata\local\ethereum\keystore\ init ./genesis.json - инициируем сетку
+3. geth --syncmode light  --datadir ./.ethereum_private  --ipcpath ./geth.ipc --keystore c:\users\groma\appdata\local\ethereum\keystore\ - запускаем geth
+4. geth attaach ipc:\\.\pipe\geth.ipc - подключемся в отдельном терминале к консоли geth
+
+
+
+
+В windows geth.ipc - не файл, а переменная окружения или что-то такое. Так что подключение через ipc к консоли geth происходит следующим образом geth attach ipc:\\.\pipe\geth.ipc
+Команды:
+eth.accounts - выводит список аккаунтов
+web3.eth.getBalance(address)
+
 Если не отправляется транзакция:
 web3.personal.unlockAccount(eth.Accouts[0], null, 60) 
+
+C:\Users\groma\AppData\Local\Ethereum\keystore\ - путь до аккаунтов  on windows
+cat c:\users\groma\appdata\local\ethereum\keystore\utc--2022-02-26t16-38-58.885058200z--6e8846a3292ada2e954d744ee5aac0aeb762d0a9
